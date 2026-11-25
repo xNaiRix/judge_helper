@@ -45,7 +45,9 @@ pytest --cov=judge_helper --cov-report=term-missing              # 179 тест�
 cd app && docker compose up --build   # http://127.0.0.1:8000/
 
 # приложение из готового образа GHCR (после зелёного CI) — одна команда
-# один раз: создайте .env в корне со строкой JUDGE_IMAGE=ghcr.io/<owner>/<repo>/judge-helper:latest
+# один раз: создайте .env в корне со строками
+#   JUDGE_IMAGE=ghcr.io/xnairix/judge_helper/judge-helper:latest
+#   APP_PORT=8300   (8000/8080 на Windows могут быть в зарезервированном диапазоне портов)
 docker compose -f docker-compose.deploy.yml up -d   # миграции применяются автоматически
 
 # TestY (TMS)
