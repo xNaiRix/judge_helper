@@ -3,4 +3,4 @@ uvicorn[standard]>=0.29
 sqlalchemy>=2.0
 pyjwt>=2.8
 pillow>=10.0
-reportlab>=4.0
+reportlab>=5.1.0
