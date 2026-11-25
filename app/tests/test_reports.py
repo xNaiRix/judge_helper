@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from tests.conftest import auth
-
 from judge_helper.models import Competition, utcnow
+from tests.conftest import auth
 
 
 class TestJudgesStats:

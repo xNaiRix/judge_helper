@@ -6,9 +6,9 @@ import json
 from datetime import timedelta
 
 from sqlalchemy import select
-from tests.conftest import add_participant, auth
 
 from judge_helper.models import AuditLog, utcnow
+from tests.conftest import add_participant, auth
 
 
 def _entries(client, **filters):

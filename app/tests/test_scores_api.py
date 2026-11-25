@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 from sqlalchemy import select
-from tests.conftest import auth, save_score
 
 from judge_helper.models import Score
+from tests.conftest import auth, save_score
 
 
 class TestSaveScore:

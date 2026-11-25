@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from tests.conftest import (
     add_judge,
     add_participant,

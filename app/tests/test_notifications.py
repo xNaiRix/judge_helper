@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from tests.conftest import auth, invite_judge
 
 from judge_helper.models import EmailOutbox
+from tests.conftest import auth, invite_judge
 
 
 def _notifications(client, token):

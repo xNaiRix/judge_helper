@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from judge_helper.models import Invite, utcnow
 from tests.conftest import (
     accept_invite,
     add_judge,
@@ -13,8 +14,6 @@ from tests.conftest import (
     save_score,
     start_competition,
 )
-
-from judge_helper.models import Invite, utcnow
 
 
 class TestCreateAndList:

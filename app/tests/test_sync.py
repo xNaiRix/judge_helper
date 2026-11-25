@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
-from tests.conftest import auth
 
 from judge_helper.models import AuditLog, Score
+from tests.conftest import auth
 
 
 def _sync(client, token, comp_id, items):
