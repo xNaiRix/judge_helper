@@ -26,7 +26,7 @@ jobs:
         working-directory: app
     steps:
       - name: Получение кода
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Установка Python
         uses: actions/setup-python@v5
@@ -57,7 +57,7 @@ jobs:
         working-directory: app
     steps:
       - name: Получение кода
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Установка Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -95,7 +95,7 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -129,7 +129,7 @@ jobs:
       security-events: write
     steps:
       - name: Получение кода
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Настройка Buildx
         uses: docker/setup-buildx-action@v3
