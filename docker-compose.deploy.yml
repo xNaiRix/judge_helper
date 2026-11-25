@@ -1,0 +1,42 @@
+# Деплой приложения «Помощник судьи» из готового образа GHCR (после зелёного CI).
+#
+# Однократная настройка: создайте файл .env рядом с этим файлом, со строкой:
+#   JUDGE_IMAGE=ghcr.io/<владелец>/<репозиторий>/judge-helper:latest
+#   (точное имя образа — в шаге «Публикация образа в GHCR» завершённого пайплайна Actions)
+#
+# Запуск ОДНОЙ командой (подтянет свежий образ из GHCR, применит миграции при старте):
+#   docker compose -f docker-compose.deploy.yml up -d
+# Остановка: docker compose -f docker-compose.deploy.yml down
+# Приложение: http://127.0.0.1:8000/   (API-документация: http://127.0.0.1:8000/docs)
+#
+# Миграции выполняются автоматически при запуске контейнера: приложение применяет
+# актуальную схему (create_all) и миграции баз ранних версий (ALTER TABLE / пересборка
+# users) — см. app/src/judge_helper/main.py, функция create_app, и database.py.
+name: judge-helper-demo
+
+services:
+  app:
+    image: ${JUDGE_IMAGE:?Задайте JUDGE_IMAGE=ghcr.io/<owner>/<repo>/judge-helper:latest в файле .env рядом с docker-compose.deploy.yml}
+    # Всегда подтягивать самый свежий образ из GHCR перед запуском.
+    pull_policy: always
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-demo-secret-change-me}
+      # Демо-режим: токены подтверждения email / сброса пароля возвращаются в API и видны в UI.
+      ECHO_EMAIL_TOKENS: ${ECHO_EMAIL_TOKENS:-1}
+      RATE_LIMIT_PER_MIN: ${RATE_LIMIT_PER_MIN:-100}
+      DATABASE_URL: sqlite:////data/judge_helper.db
+    volumes:
+      # База живёт в volume — данные переживают пересоздание контейнера.
+      - judge_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  judge_data:

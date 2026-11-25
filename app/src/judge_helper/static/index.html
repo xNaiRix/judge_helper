@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Помощник судьи</title>
+<style>
+  :root {
+    --primary: #1565c0; --primary-dark: #0d47a1; --bg: #f4f6f9;
+    --card: #ffffff; --border: #dde3ea; --text: #1f2937;
+    --muted: #6b7280; --danger: #c62828; --ok: #2e7d32; --warn: #ef6c00;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  header { background: var(--primary); color: #fff; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 20px; margin: 0; flex: 1; }
+  header .user { font-size: 14px; opacity: .9; }
+  header button { background: rgba(255,255,255,.15); }
+  main { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .card h2 { margin-top: 0; font-size: 18px; }
+  .card h3 { font-size: 15px; margin: 16px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { color: var(--muted); font-weight: 600; }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover { background: #eef3fa; }
+  input, select, button { font: inherit; }
+  input, select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+  input[type=number] { width: 70px; }
+  button { padding: 8px 16px; border: 0; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; }
+  button:hover { background: var(--primary-dark); }
+  button.secondary { background: #e3eaf3; color: var(--text); }
+  button.danger { background: var(--danger); }
+  button.small { padding: 4px 10px; font-size: 13px; }
+  form.inline { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge.planned { background: #e8eaf6; color: #303f9f; }
+  .badge.started { background: #e8f5e9; color: #2e7d32; }
+  .badge.finished { background: #fbe9e7; color: #bf360c; }
+  .error { background: #fdecea; color: var(--danger); border: 1px solid #f5c6cb; border-radius: 6px; padding: 10px 14px; margin: 12px 0; }
+  .hint { font-size: 13px; color: var(--muted); }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #263238; color: #fff; padding: 12px 20px; border-radius: 8px; opacity: 0; transition: opacity .3s; }
+  .toast.show { opacity: 1; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+  details.judges { margin-top: 6px; }
+  details.judges summary { cursor: pointer; font-size: 13px; color: var(--primary); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .back { background: none; border: none; color: var(--primary); padding: 0; cursor: pointer; font-size: 14px; }
+  .bell { position: relative; }
+  .bell .count { position: absolute; top: -6px; right: -6px; background: var(--danger); color: #fff; border-radius: 999px; font-size: 11px; padding: 1px 6px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Помощник судьи</h1>
+  <span class="user" id="current-user"></span>
+  <button class="small bell" id="btn-notifications" hidden>🔔<span class="count" id="notif-count" hidden>0</span></button>
+  <button class="small" id="btn-settings" hidden>⚙ Настройки</button>
+  <button class="small" id="btn-logout" hidden>Выйти</button>
+</header>
+
+<main>
+
+  <!-- Экран входа/регистрации -->
+  <section id="view-auth">
+    <div class="card" style="max-width:460px;margin:60px auto;">
+      <div class="tabs">
+        <button id="tab-login">Вход</button>
+        <button id="tab-register" class="secondary">Регистрация</button>
+      </div>
+      <form id="form-login">
+        <p><label>Email</label><input id="login-email" type="email" required style="width:100%"></p>
+        <p><label>Пароль</label><input id="login-password" type="password" required style="width:100%"></p>
+        <button type="submit" style="width:100%">Войти</button>
+        <p class="hint" style="text-align:center;margin-bottom:0;">
+          <a href="#" id="link-forgot">Забыли пароль?</a>
+        </p>
+      </form>
+      <form id="form-register" hidden>
+        <p><label>ФИО</label><input id="reg-name" required style="width:100%"></p>
+        <p><label>Email</label><input id="reg-email" type="email" required style="width:100%"></p>
+        <p><label>Пароль (мин. 6 символов)</label><input id="reg-password" type="password" required minlength="6" style="width:100%"></p>
+        <p style="display:flex;gap:8px;align-items:flex-start;">
+          <input id="reg-adult" type="checkbox" required style="margin-top:3px;">
+          <span class="hint">Подтверждаю, что я совершеннолетний (18+).<br>Обязательно для регистрации судьи.</span>
+        </p>
+        <button type="submit" style="width:100%">Зарегистрироваться</button>
+        <p class="hint">После регистрации нужно подтвердить email. В демо-режиме подтверждение выполняется автоматически.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- Список соревнований -->
+  <section id="view-list" hidden>
+    <div class="card">
+      <h2>Мои соревнования</h2>
+      <table>
+        <thead><tr><th>Название</th><th>Даты</th><th>Место</th><th>Статус</th><th>Роль</th></tr></thead>
+        <tbody id="competitions-tbody"></tbody>
+      </table>
+      <p class="hint" id="competitions-empty" hidden>Пока нет соревнований — создайте первое.</p>
+    </div>
+    <div class="card" id="card-invitations" hidden>
+      <h2>Приглашения в соревнования</h2>
+      <table><tbody id="invitations-tbody"></tbody></table>
+      <p class="hint">Приглашение действует 1 неделю с момента отправки. После начала соревнования необработанные приглашения истекают.</p>
+    </div>
+    <div class="card">
+      <h2>Создать соревнование</h2>
+      <form class="inline" id="form-create-competition">
+        <div><label>Название</label><input id="comp-name" required></div>
+        <div><label>Даты (ДД.ММ.ГГГГ)</label><input id="comp-dates" placeholder="20.12.2026" required></div>
+        <div><label>Место</label><input id="comp-place" required></div>
+        <button type="submit">Создать</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Соревнование -->
+  <section id="view-comp" hidden>
+    <button class="back" id="btn-back">← К списку соревнований</button>
+    <div class="card">
+      <h2 id="comp-title"></h2>
+      <p class="hint" id="comp-meta"></p>
+      <div class="actions" id="comp-actions"></div>
+      <div id="comp-finish-warn"></div>
+    </div>
+
+    <div class="card" id="card-invites">
+      <h3>Судьи</h3>
+      <table><tbody id="judges-tbody"></tbody></table>
+      <form class="inline" id="form-invite" style="margin-top:12px;">
+        <div><label>Пригласить судью (email)</label><input id="invite-email" type="email" required></div>
+        <button type="submit">Пригласить</button>
+      </form>
+      <p class="hint">Приглашение действует 1 неделю и принимается судьёй под своим аккаунтом с этим email.</p>
+    </div>
+
+    <div class="card" id="card-participants">
+      <h3>Участники</h3>
+      <table>
+        <thead><tr><th>ФИО</th><th>Категория</th><th>Комментарий</th><th id="participants-actions-th"></th></tr></thead>
+        <tbody id="participants-tbody"></tbody>
+      </table>
+      <form class="inline" id="form-add-participant" style="margin-top:12px;">
+        <div><label>Фамилия</label><input id="p-last" required></div>
+        <div><label>Имя</label><input id="p-first" required></div>
+        <div><label>Отчество</label><input id="p-patronymic"></div>
+        <div><label>Категория</label>
+          <select id="p-category">
+            <option>Дети</option><option>Юниоры</option><option selected>Взрослые</option><option>Ветераны</option>
+          </select>
+        </div>
+        <button type="submit">Добавить</button>
+      </form>
+      <p class="hint">Дубликаты ФИО запрещены (регистр, лишние пробелы и «ё»/«е» не различаются). Карточки можно менять только до начала соревнования.</p>
+    </div>
+
+    <div class="card" id="card-scoring" hidden>
+      <h3>Выставление оценок</h3>
+      <p class="hint">Артистизм и техника — целые от 0 до 10. Повторное сохранение обновляет оценку.</p>
+      <table>
+        <thead><tr><th>Участник</th><th>Артистизм</th><th>Техника</th><th>Комментарий</th><th></th></tr></thead>
+        <tbody id="scoring-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="card" id="card-results" hidden>
+      <h3>Результаты</h3>
+      <div class="toolbar">
+        <label>Сортировка
+          <select id="res-sort">
+            <option value="competition_score">Соревновательный балл</option>
+            <option value="artistry_score">Итоговая артистичность</option>
+            <option value="technique_score">Итоговая техника</option>
+          </select>
+        </label>
+        <label>Порядок
+          <select id="res-order"><option value="desc">По убыванию</option><option value="asc">По возрастанию</option></select>
+        </label>
+        <label>Категория
+          <select id="res-category">
+            <option value="">Все</option>
+            <option>Дети</option><option>Юниоры</option><option>Взрослые</option><option>Ветераны</option>
+          </select>
+        </label>
+      </div>
+      <table>
+        <thead><tr><th>Участник</th><th>Категория</th><th>Артистизм</th><th>Техника</th><th>Соревновательный балл</th></tr></thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+      <div class="actions">
+        <button class="secondary" id="btn-csv">⬇ Гистограмма (CSV)</button>
+        <button class="secondary" id="btn-png">⬇ Гистограмма (PNG)</button>
+        <button class="secondary" id="btn-pdf">⬇ Протокол (PDF)</button>
+      </div>
+    </div>
+
+    <div class="card" id="card-judges-stats" hidden>
+      <h3>Статистика по судьям (для администратора)</h3>
+      <table>
+        <thead><tr><th>Судья</th><th>Ср. артистизм</th><th>Ср. техника</th><th>Ср. итог</th><th></th></tr></thead>
+        <tbody id="judges-stats-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Уведомления -->
+  <section id="view-notifications" hidden>
+    <div class="card">
+      <h2>Уведомления</h2>
+      <div class="actions" style="margin-top:0;">
+        <button class="secondary small" id="btn-read-all">Пометить прочитанными</button>
+        <button class="secondary small" id="btn-notif-back">← Назад</button>
+      </div>
+      <table><tbody id="notifications-tbody"></tbody></table>
+      <p class="hint" id="notifications-empty" hidden>Уведомлений нет.</p>
+    </div>
+  </section>
+
+  <!-- Настройки -->
+  <section id="view-settings" hidden>
+    <div class="card" style="max-width:560px;">
+      <h2>Настройки</h2>
+      <p style="display:flex;gap:8px;align-items:flex-start;">
+        <input id="set-notifications" type="checkbox" style="margin-top:3px;">
+        <span>Push-уведомления<br><span class="hint">Приглашения, изменение статусов соревнований, удаление из соревнования и т.д.</span></span>
+      </p>
+      <p style="display:flex;gap:8px;align-items:flex-start;">
+        <input id="set-email" type="checkbox" style="margin-top:3px;">
+        <span>Дублировать уведомления на email<br><span class="hint">Письма уходят на адрес вашей учётной записи.</span></span>
+      </p>
+      <div class="actions">
+        <button id="btn-save-settings">Сохранить</button>
+        <button class="secondary" id="btn-settings-back">← Назад</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="global-error"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+let accessToken = localStorage.getItem("accessToken") || "";
+let refreshToken = localStorage.getItem("refreshToken") || "";
+let user = JSON.parse(localStorage.getItem("user") || "null");
+let currentComp = null;   // детали открытого соревнования
+let participants = [];
+let previousView = "view-list";
+
+const $ = (id) => document.getElementById(id);
+
+const STATUS_LABEL = { planned: "Не начато", started: "Начато", finished: "Завершено" };
+
+// ---------- API (JWT + авто-refresh) ----------
+
+async function api(path, options = {}, retry = true) {
+  const opts = { headers: { "Content-Type": "application/json" }, ...options };
+  if (accessToken) opts.headers["Authorization"] = "Bearer " + accessToken;
+  if (opts.body && typeof opts.body !== "string") opts.body = JSON.stringify(opts.body);
+  const resp = await fetch(path, opts);
+  if (resp.status === 204) return null;
+  let data = null;
+  try { data = await resp.json(); } catch (e) { /* пустой ответ */ }
+  if (!resp.ok) {
+    // access истёк — пробуем обновить и повторить один раз
+    if (resp.status === 401 && retry && refreshToken) {
+      const ok = await tryRefresh();
+      if (ok) return api(path, options, false);
+    }
+    const detail = data && data.detail;
+    const msg = typeof detail === "string"
+      ? detail
+      : (detail && detail.message ? detail.message + (detail.participants ? ": " + detail.participants.join(", ") : "")
+         : "Ошибка " + resp.status);
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function tryRefresh() {
+  try {
+    const resp = await fetch("/auth/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    if (!resp.ok) return false;
+    const body = await resp.json();
+    accessToken = body.access_token;
+    refreshToken = body.refresh_token;
+    localStorage.setItem("accessToken", accessToken);
+    localStorage.setItem("refreshToken", refreshToken);
+    return true;
+  } catch (e) { return false; }
+}
+
+// ---------- Утилиты UI ----------
+
+function showError(text) {
+  $("global-error").innerHTML = text ? '<div class="error">' + escapeHtml(text) + "</div>" : "";
+}
+
+function toast(text) {
+  const t = $("toast");
+  t.textContent = text;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&" + "amp;")
+    .replace(/</g, "&" + "lt;")
+    .replace(/>/g, "&" + "gt;")
+    .replace(/"/g, "&" + "quot;")
+    .replace(/'/g, "&" + "#39;");
+}
+
+function show(view) {
+  for (const id of ["view-auth", "view-list", "view-comp", "view-notifications", "view-settings"]) {
+    $(id).hidden = id !== view;
+  }
+}
+
+function setAuthState(body) {
+  accessToken = body.access_token;
+  refreshToken = body.refresh_token;
+  user = body.user;
+  localStorage.setItem("accessToken", accessToken);
+  localStorage.setItem("refreshToken", refreshToken);
+  localStorage.setItem("user", JSON.stringify(user));
+  $("btn-logout").hidden = false;
+  $("btn-settings").hidden = false;
+  $("btn-notifications").hidden = false;
+  $("current-user").textContent = user.full_name + " (" + user.email + ")";
+}
+
+// ---------- Авторизация ----------
+
+function logout() {
+  if (accessToken) {
+    api("/auth/logout", { method: "POST", body: { refresh_token: refreshToken } }).catch(() => {});
+  }
+  accessToken = ""; refreshToken = ""; user = null;
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("user");
+  $("btn-logout").hidden = true;
+  $("btn-settings").hidden = true;
+  $("btn-notifications").hidden = true;
+  $("current-user").textContent = "";
+  show("view-auth");
+}
+
+$("tab-login").onclick = () => {
+  $("tab-login").classList.remove("secondary");
+  $("tab-register").classList.add("secondary");
+  $("form-login").hidden = false; $("form-register").hidden = true;
+};
+$("tab-register").onclick = () => {
+  $("tab-register").classList.remove("secondary");
+  $("tab-login").classList.add("secondary");
+  $("form-register").hidden = false; $("form-login").hidden = true;
+};
+
+$("form-login").onsubmit = async (e) => {
+  e.preventDefault(); showError("");
+  try {
+    const body = await api("/auth/login", {
+      method: "POST",
+      body: { email: $("login-email").value.trim(), password: $("login-password").value }
+    });
+    setAuthState(body);
+    await loadCompetitions();
+  } catch (err) { showError(err.message); }
+};
+
+$("form-register").onsubmit = async (e) => {
+  e.preventDefault(); showError("");
+  const email = $("reg-email").value.trim();
+  const password = $("reg-password").value;
+  try {
+    const reg = await api("/auth/register", {
+      method: "POST",
+      body: {
+        email: email,
+        full_name: $("reg-name").value.trim(),
+        password: password,
+        adult: $("reg-adult").checked
+      }
+    });
+    if (reg.confirmation_token) {
+      // Демо-режим: подтверждение email токеном из «письма»
+      await api("/auth/confirm-email", { method: "POST", body: { token: reg.confirmation_token } });
+      toast("Email подтверждён (демо-режим)");
+    }
+    const body = await api("/auth/login", { method: "POST", body: { email: email, password: password } });
+    setAuthState(body);
+    await loadCompetitions();
+  } catch (err) { showError(err.message); }
+};
+
+$("link-forgot").onclick = async (e) => {
+  e.preventDefault(); showError("");
+  const email = prompt("Введите email для восстановления пароля:");
+  if (!email) return;
+  try {
+    const resp = await api("/auth/forgot-password", { method: "POST", body: { email: email.trim() } });
+    const resetToken = resp.reset_token;
+    if (!resetToken) {
+      toast("Если аккаунт существует, письмо отправлено");
+      return;
+    }
+    const newPassword = prompt("Демо-режим: введите новый пароль (мин. 6 символов):");
+    if (!newPassword) return;
+    await api("/auth/reset-password", {
+      method: "POST",
+      body: { token: resetToken, new_password: newPassword }
+    });
+    toast("Пароль изменён, все сессии завершены. Войдите заново.");
+  } catch (err) { showError(err.message); }
+};
+
+$("btn-logout").onclick = logout;
+
+// ---------- Список соревнований ----------
+
+async function loadCompetitions() {
+  show("view-list");
+  showError("");
+  try {
+    const comps = await api("/competitions");
+    const tbody = $("competitions-tbody");
+    tbody.innerHTML = "";
+    $("competitions-empty").hidden = comps.length > 0;
+    for (const c of comps) {
+      const tr = document.createElement("tr");
+      tr.className = "clickable";
+      tr.innerHTML =
+        "<td><b>" + escapeHtml(c.name) + "</b></td>" +
+        "<td>" + escapeHtml(c.dates) + "</td>" +
+        "<td>" + escapeHtml(c.place) + "</td>" +
+        '<td><span class="badge ' + c.status + '">' + STATUS_LABEL[c.status] + "</span></td>" +
+        "<td>" + (c.is_admin ? "Администратор" : "Судья") + "</td>";
+      tr.onclick = () => openCompetition(c.id);
+      tbody.appendChild(tr);
+    }
+    await loadInvitations();
+    refreshNotificationBadge();
+  } catch (err) {
+    if (String(err.message).includes("токен")) logout();
+    showError(err.message);
+  }
+}
+
+// ---------- Приглашения ----------
+
+async function loadInvitations() {
+  const items = await api("/invitations").catch(() => []);
+  const card = $("card-invitations");
+  const tbody = $("invitations-tbody");
+  card.hidden = items.length === 0;
+  tbody.innerHTML = "";
+  for (const inv of items) {
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td><b>" + escapeHtml(inv.competition_name) + "</b>" +
+      "<br><span class='hint'>Даты: " + escapeHtml(inv.dates) +
+      " · Место: " + escapeHtml(inv.place) +
+      "<br>Администратор: " + escapeHtml(inv.admin_name) +
+      " (" + escapeHtml(inv.admin_email) + ")" +
+      " · ID соревнования: " + inv.competition_id +
+      "<br>Действует до: " + new Date(inv.expires_at + "Z").toLocaleString("ru-RU") +
+      "</span></td>" +
+      "<td><button class='small'>Принять</button> " +
+      "<button class='small secondary'>Отклонить</button></td>";
+    const buttons = tr.querySelectorAll("button");
+    buttons[0].onclick = () => respondInvitation(inv, "accept");
+    buttons[1].onclick = () => respondInvitation(inv, "decline");
+    tbody.appendChild(tr);
+  }
+}
+
+async function respondInvitation(inv, action) {
+  try {
+    await api("/competitions/" + inv.competition_id +
+              "/invites/" + inv.invite_id + "/" + action, { method: "POST" });
+    toast(action === "accept" ? "Приглашение принято" : "Приглашение отклонено");
+    await loadCompetitions();
+  } catch (err) { showError(err.message); }
+}
+
+$("form-create-competition").onsubmit = async (e) => {
+  e.preventDefault(); showError("");
+  try {
+    const comp = await api("/competitions", {
+      method: "POST",
+      body: {
+        name: $("comp-name").value.trim(),
+        dates: $("comp-dates").value.trim(),
+        place: $("comp-place").value.trim()
+      }
+    });
+    toast("Соревнование создано");
+    openCompetition(comp.id);
+  } catch (err) { showError(err.message); }
+};
+
+// ---------- Соревнование ----------
+
+async function openCompetition(id) {
+  show("view-comp");
+  showError("");
+  currentComp = await api("/competitions/" + id);
+  renderCompetition();
+}
+
+function renderCompetition() {
+  const c = currentComp;
+  const isAdmin = c.is_admin;
+
+  $("comp-title").innerHTML = escapeHtml(c.name) +
+    ' <span class="badge ' + c.status + '">' + STATUS_LABEL[c.status] + "</span>";
+  $("comp-meta").textContent =
+    "Даты: " + c.dates + " · Место: " + c.place + " · Роль: " + (isAdmin ? "администратор" : "судья");
+
+  const actions = $("comp-actions");
+  actions.innerHTML = "";
+  const addBtn = (text, cls, handler, confirmText) => {
+    const b = document.createElement("button");
+    b.textContent = text;
+    if (cls) b.className = cls;
+    b.onclick = async () => {
+      if (confirmText && !confirm(confirmText)) return;
+      try { await handler(); } catch (err) { showError(err.message); }
+    };
+    actions.appendChild(b);
+  };
+
+  if (isAdmin && c.status === "planned") {
+    addBtn("▶ Начать соревнование", "", async () => {
+      currentComp = await api("/competitions/" + c.id + "/start", { method: "POST" });
+      toast("Соревнование начато");
+      renderCompetition();
+    }, "Начать соревнование? После начала нельзя менять состав судей и участников, а приглашения истекут.");
+    addBtn("🗑 Удалить", "danger", async () => {
+      await api("/competitions/" + c.id, { method: "DELETE" });
+      toast("Соревнование удалено");
+      loadCompetitions();
+    }, "Удалить соревнование?");
+  }
+  if (isAdmin && c.status === "started") {
+    addBtn("🏁 Завершить", "", async () => {
+      const res = await api("/competitions/" + c.id + "/finish", { method: "POST" });
+      let html = "";
+      if (res.warnings && res.warnings.length) {
+        html = '<div class="error" style="background:#fff8e1;color:#7b5800;border-color:#ffe082;">' +
+          "<b>Предупреждение:</b><br>" + res.warnings.map(escapeHtml).join("<br>") + "</div>";
+      }
+      $("comp-finish-warn").innerHTML = html;
+      currentComp = await api("/competitions/" + c.id);
+      toast("Соревнование завершено");
+      renderCompetition();
+    }, "Завершить соревнование? После завершения оценки менять нельзя.");
+  }
+  if (isAdmin && c.status === "finished") {
+    addBtn("🗑 Удалить", "danger", async () => {
+      await api("/competitions/" + c.id, { method: "DELETE" });
+      toast("Соревнование удалено");
+      loadCompetitions();
+    }, "Удалить завершённое соревнование?");
+  }
+
+  // Судьи
+  const jt = $("judges-tbody");
+  jt.innerHTML = "";
+  for (const j of c.judges) {
+    const tr = document.createElement("tr");
+    const isCompAdmin = j.id === c.admin_id;
+    const canRemove = isAdmin && c.status === "planned" && !isCompAdmin && j.id !== user.id;
+    let html = "<td>" + escapeHtml(j.full_name) + " " + (isCompAdmin ? '<span class="hint">(администратор)</span>' : "") + "</td>" +
+      "<td>" + escapeHtml(j.email) + "</td>";
+    if (canRemove) html += '<td><button class="small danger">Удалить</button></td>';
+    tr.innerHTML = html;
+    if (canRemove) {
+      tr.querySelector("button").onclick = async () => {
+        try {
+          await api("/competitions/" + c.id + "/judges/" + j.id, { method: "DELETE" });
+          toast("Судья удалён из соревнования");
+          openCompetition(c.id);
+        } catch (err) { showError(err.message); }
+      };
+    }
+    jt.appendChild(tr);
+  }
+  $("form-invite").hidden = !(isAdmin && c.status === "planned");
+
+  renderParticipants();
+  $("card-scoring").hidden = c.status !== "started";
+  $("card-results").hidden = c.status !== "finished";
+  $("card-judges-stats").hidden = !(c.status === "finished" && isAdmin);
+  if (c.status === "started") renderScoring();
+  if (c.status === "finished") {
+    renderResults();
+    if (isAdmin) renderJudgesStats();
+  }
+}
+
+$("btn-back").onclick = () => loadCompetitions();
+
+$("form-invite").onsubmit = async (e) => {
+  e.preventDefault(); showError("");
+  try {
+    await api("/competitions/" + currentComp.id + "/invites", {
+      method: "POST",
+      body: { email: $("invite-email").value.trim() }
+    });
+    $("invite-email").value = "";
+    toast("Приглашение отправлено (действует 1 неделю)");
+  } catch (err) { showError(err.message); }
+};
+
+// ---------- Участники ----------
+
+async function renderParticipants() {
+  const c = currentComp;
+  const isAdmin = c.is_admin;
+  const editable = isAdmin && c.status === "planned";
+  participants = await api("/competitions/" + c.id + "/participants");
+
+  $("participants-actions-th").textContent = editable ? "Действия" : "";
+  const tbody = $("participants-tbody");
+  tbody.innerHTML = "";
+  for (const p of participants) {
+    const tr = document.createElement("tr");
+    const fio = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(" ");
+    let html = "<td>" + escapeHtml(fio) + "</td>" +
+      "<td>" + escapeHtml(p.category) + "</td>" +
+      "<td class='hint'>" + escapeHtml(p.comment) + "</td>";
+    if (editable) html += '<td><button class="small secondary">Удалить</button></td>';
+    tr.innerHTML = html;
+    if (editable) {
+      tr.querySelector("button").onclick = async () => {
+        if (!confirm("Удалить участника " + fio + "?")) return;
+        try {
+          await api("/competitions/" + c.id + "/participants/" + p.id, { method: "DELETE" });
+          renderParticipants();
+        } catch (err) { showError(err.message); }
+      };
+    }
+    tbody.appendChild(tr);
+  }
+  $("form-add-participant").hidden = !editable;
+}
+
+$("form-add-participant").onsubmit = async (e) => {
+  e.preventDefault(); showError("");
+  try {
+    await api("/competitions/" + currentComp.id + "/participants", {
+      method: "POST",
+      body: {
+        last_name: $("p-last").value.trim(),
+        first_name: $("p-first").value.trim(),
+        patronymic: $("p-patronymic").value.trim(),
+        category: $("p-category").value,
+        comment: ""
+      }
+    });
+    $("p-last").value = $("p-first").value = $("p-patronymic").value = "";
+    toast("Участник добавлен");
+    renderParticipants();
+  } catch (err) { showError(err.message); }
+};
+
+// ---------- Оценки ----------
+
+async function renderScoring() {
+  const c = currentComp;
+  const my = await api("/competitions/" + c.id + "/scores/my").catch(() => []);
+  const mineByPid = {};
+  for (const s of my) mineByPid[s.participant.id] = s;
+
+  const tbody = $("scoring-tbody");
+  tbody.innerHTML = "";
+  for (const p of participants) {
+    const existing = mineByPid[p.id];
+    const fio = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(" ");
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + escapeHtml(fio) + ' <span class="hint">(' + escapeHtml(p.category) + ")</span></td>" +
+      '<td><input type="number" min="0" max="10" step="1" value="' + (existing ? existing.artistry : "") + '"></td>' +
+      '<td><input type="number" min="0" max="10" step="1" value="' + (existing ? existing.technique : "") + '"></td>' +
+      '<td><input style="width:100%" value="' + escapeHtml(existing ? existing.comment : "") + '"></td>' +
+      '<td><button class="small">Сохранить</button></td>';
+    tr.querySelector("button").onclick = async () => {
+      const inputs = tr.querySelectorAll("input");
+      const art = inputs[0].value, tech = inputs[1].value, comment = inputs[2].value;
+      if (art === "" || tech === "") { showError("Заполните обе оценки (0–10)"); return; }
+      try {
+        await api("/competitions/" + c.id + "/scores/participants/" + p.id, {
+          method: "PUT",
+          body: { artistry: parseInt(art, 10), technique: parseInt(tech, 10), comment: comment }
+        });
+        toast("Оценка сохранена: " + fio);
+        showError("");
+      } catch (err) { showError(err.message); }
+    };
+    tbody.appendChild(tr);
+  }
+}
+
+// ---------- Результаты ----------
+
+async function renderResults() {
+  const c = currentComp;
+  const params = new URLSearchParams({
+    sort_by: $("res-sort").value,
+    order: $("res-order").value
+  });
+  if ($("res-category").value) params.set("category", $("res-category").value);
+  const rows = await api("/competitions/" + c.id + "/results?" + params.toString());
+
+  const tbody = $("results-tbody");
+  tbody.innerHTML = "";
+  for (const r of rows) {
+    const p = r.participant;
+    const fio = [p.last_name, p.first_name, p.patronymic].filter(Boolean).join(" ");
+    const tr = document.createElement("tr");
+    let html =
+      "<td><b>" + escapeHtml(fio) + "</b></td>" +
+      "<td>" + escapeHtml(p.category) + "</td>" +
+      "<td>" + fmt(r.artistry_score) + "</td>" +
+      "<td>" + fmt(r.technique_score) + "</td>" +
+      "<td><b>" + fmt(r.competition_score) + "</b></td>";
+    if (r.judges && r.judges.length) {
+      html += "</tr><tr><td colspan='5'><details class='judges'><summary>Оценки судей (видно только администратору)</summary>" +
+        "<table><thead><tr><th>Судья</th><th>Артистизм</th><th>Техника</th><th>Итог</th><th>Комментарий</th></tr></thead><tbody>" +
+        r.judges.map(j =>
+          "<tr><td>" + escapeHtml(j.judge) + "</td><td>" + j.artistry + "</td><td>" + j.technique +
+          "</td><td>" + j.total + "</td><td class='hint'>" + escapeHtml(j.comment) + "</td></tr>"
+        ).join("") +
+        "</tbody></table></details></td>";
+    }
+    tr.innerHTML = html;
+    tbody.appendChild(tr);
+  }
+}
+
+function fmt(v) {
+  return v === null || v === undefined ? "—" : v.toFixed(2);
+}
+
+for (const id of ["res-sort", "res-order", "res-category"]) {
+  $(id).onchange = () => {
+    if (currentComp && currentComp.status === "finished") renderResults();
+  };
+}
+
+// ---------- Статистика по судьям (администратор) ----------
+
+async function renderJudgesStats() {
+  const c = currentComp;
+  const rows = await api("/competitions/" + c.id + "/judges/stats");
+  const tbody = $("judges-stats-tbody");
+  tbody.innerHTML = "";
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + escapeHtml(r.full_name) + "<br><span class='hint'>" + escapeHtml(r.email) + "</span></td>" +
+      "<td>" + fmt(r.avg_artistry) + "</td>" +
+      "<td>" + fmt(r.avg_technique) + "</td>" +
+      "<td>" + fmt(r.avg_total) + "</td>" +
+      "<td><details class='judges'><summary>Подробно (" + r.entries.length + ")</summary>" +
+      "<table><thead><tr><th>Участник</th><th>Категория</th><th>Арт.</th><th>Итог. арт.</th><th>Тех.</th><th>Итог. тех.</th><th>Итог судьи</th><th>Соревн. балл</th></tr></thead><tbody>" +
+      r.entries.map(e =>
+        "<tr><td>" + escapeHtml(e.participant) + "</td><td>" + escapeHtml(e.category) + "</td><td>" +
+        e.artistry + "</td><td>" + fmt(e.artistry_final) + "</td><td>" + e.technique + "</td><td>" +
+        fmt(e.technique_final) + "</td><td>" + e.total + "</td><td>" + fmt(e.competition_score) + "</td></tr>"
+      ).join("") +
+      "</tbody></table></details></td>";
+    tbody.appendChild(tr);
+  }
+}
+
+// ---------- Выгрузки (CSV / PNG / PDF) ----------
+
+async function downloadReport(path, filename) {
+  try {
+    const resp = await fetch(path, { headers: { "Authorization": "Bearer " + accessToken } });
+    if (!resp.ok) {
+      let msg = "Ошибка " + resp.status;
+      try { msg = (await resp.json()).detail || msg; } catch (e) {}
+      throw new Error(typeof msg === "string" ? msg : msg.message);
+    }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) { showError(err.message); }
+}
+
+$("btn-csv").onclick = () => downloadReport(
+  "/competitions/" + currentComp.id + "/reports/chart.csv", "chart_" + currentComp.id + ".csv");
+$("btn-png").onclick = () => downloadReport(
+  "/competitions/" + currentComp.id + "/reports/chart.png", "chart_" + currentComp.id + ".png");
+$("btn-pdf").onclick = () => downloadReport(
+  "/competitions/" + currentComp.id + "/protocol.pdf", "protocol_" + currentComp.id + ".pdf");
+
+// ---------- Уведомления ----------
+
+async function refreshNotificationBadge() {
+  if (!accessToken) return;
+  try {
+    const notes = await api("/notifications?unread_only=true");
+    const badge = $("notif-count");
+    badge.hidden = notes.length === 0;
+    badge.textContent = notes.length;
+  } catch (e) { /* не критично */ }
+}
+
+async function renderNotifications() {
+  previousView = "view-list";
+  show("view-notifications");
+  const notes = await api("/notifications");
+  const tbody = $("notifications-tbody");
+  tbody.innerHTML = "";
+  $("notifications-empty").hidden = notes.length > 0;
+  for (const n of notes) {
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + (n.read ? "" : "🔵 ") + escapeHtml(n.text) + "</td>" +
+      "<td class='hint'>" + new Date(n.created_at + "Z").toLocaleString("ru-RU") + "</td>";
+    tbody.appendChild(tr);
+  }
+}
+
+$("btn-notifications").onclick = renderNotifications;
+$("btn-notif-back").onclick = () => loadCompetitions();
+$("btn-read-all").onclick = async () => {
+  await api("/notifications/read-all", { method: "POST" });
+  renderNotifications();
+  refreshNotificationBadge();
+};
+
+// ---------- Настройки ----------
+
+async function renderSettings() {
+  previousView = "view-list";
+  show("view-settings");
+  const s = await api("/settings");
+  $("set-notifications").checked = s.notifications_enabled;
+  $("set-email").checked = s.email_notifications_enabled;
+}
+
+$("btn-settings").onclick = renderSettings;
+$("btn-settings-back").onclick = () => loadCompetitions();
+$("btn-save-settings").onclick = async () => {
+  try {
+    await api("/settings", {
+      method: "PATCH",
+      body: {
+        notifications_enabled: $("set-notifications").checked,
+        email_notifications_enabled: $("set-email").checked
+      }
+    });
+    toast("Настройки сохранены");
+    loadCompetitions();
+  } catch (err) { showError(err.message); }
+};
+
+// ---------- Инициализация ----------
+
+if (accessToken && user) {
+  $("btn-logout").hidden = false;
+  $("btn-settings").hidden = false;
+  $("btn-notifications").hidden = false;
+  $("current-user").textContent = user.full_name + " (" + user.email + ")";
+  loadCompetitions().catch(() => logout());
+} else {
+  show("view-auth");
+}
+</script>
+</body>
+</html>

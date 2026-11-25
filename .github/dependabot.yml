@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Автообновление зависимостей приложения
+  - package-ecosystem: pip
+    directory: /app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Автообновление GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Автообновление базового образа
+  - package-ecosystem: docker
+    directory: /app
+    schedule:
+      interval: weekly

@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+report.xml
+htmlcov/
+
+# Тесты и dev-инструменты не нужны в production-образе
+tests/
+scripts/
+requirements-dev.txt
+tb.txt
+
+# Локальные БД и артефакты
+*.db
+*.sqlite
+*.sqlite3
+
+# Git / IDE / ОС
+.git/
+.gitignore
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Документация
+README.md

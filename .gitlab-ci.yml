@@ -1,0 +1,26 @@
+# CI/CD для GitLab CI (стек из ТЗ)
+stages:
+  - test
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+tests:
+  stage: test
+  image: python:3.11
+  before_script:
+    - pip install -r app/requirements-dev.txt
+  script:
+    - cd app
+    - pytest --cov=judge_helper --cov-report=term-missing --cov-report=xml
+      --cov-fail-under=80 --junitxml=report.xml
+  coverage: '/TOTAL.*\s+(\d+)%/'
+  artifacts:
+    when: always
+    reports:
+      junit: app/report.xml
+    paths:
+      - app/coverage.xml
+  cache:
+    paths:
+      - .cache/pip
